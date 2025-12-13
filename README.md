@@ -235,14 +235,6 @@ kompose convert
 4. Push to the branch
 5. Create a Pull Request
 
-## 📄 License
-
-MIT License
-
-## 👥 Authors
-
-Your team / organization
-
 ## 🙏 Acknowledgments
 
 - Socket.IO documentation
