@@ -1,4 +1,6 @@
-# Production-Grade Real-Time Chat Application
+# Blue
+
+## Production-Grade Real-Time Chat Application
 
 A scalable, production-ready chat application built with Node.js, Express, Socket.IO, MongoDB, Redis, and React.
 
@@ -27,7 +29,7 @@ A scalable, production-ready chat application built with Node.js, Express, Socke
 1. Clone the repository
 ```bash
 git clone <repo-url>
-cd chat-app
+cd Blue
 ```
 
 2. Create environment file
@@ -42,9 +44,9 @@ docker-compose up --build
 ```
 
 4. Access the application
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-- Health Check: http://localhost:5000/health
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8080
+- Health Check: http://localhost:8080/health
 
 ### Local Development
 
@@ -203,7 +205,7 @@ JWT_ACCESS_SECRET=your_secret_key
 JWT_REFRESH_SECRET=your_refresh_secret_key
 JWT_ACCESS_EXPIRY=15m
 JWT_REFRESH_EXPIRY=7d
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:5173
 ```
 
 ## 📊 Monitoring

@@ -1,157 +1,79 @@
-import React, { useState, useEffect } from 'react';
-// import { io, Socket } from 'socket.io-client';
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import type { AppDispatch } from "./redux/store";
 
-import AuthForm from './components/auth/AuthForm';
-import UsersList from './components/users/UsersList';
-import ChatMessages from './components/chat/ChatMessages';
+import AuthForm from "./components/auth/AuthForm";
+import UsersList from "./components/users/UsersList";
+import ChatMessages from "./components/chat/ChatMessages";
 
-import type { User, Message, AuthTokens } from './types';
-
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import type { User } from "./types";
+import { getSocket } from "./redux/slices/socket.slice";
+import { initSocket, disconnectSocket } from "./redux/slices/socket.slice";
+import {
+  getChatUsers,
+  getMessages,
+  resetUnread,
+  clearChat,
+} from "./redux/slices/chat.slice";
 
 export default function App() {
+  const dispatch = useDispatch<AppDispatch>();
+  const socket = getSocket();
+
+  const users = useSelector((state: any) => state.chat.users);
+  const messages = useSelector((state: any) => state.chat.messages);
+  const unreadCounts = useSelector(
+    (state: any) => state.chat.unreadCounts
+  );
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authTokens, setAuthTokens] = useState<AuthTokens | null>(null);
-//   const [socket, setSocket] = useState<Socket | null>(null);
-
-  // Auth
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [authForm, setAuthForm] = useState({
-    username: '',
-    email: '',
-    password: ''
-  });
-  const [authError, setAuthError] = useState('');
-
-  // Chat
-  const [users, setUsers] = useState<User[]>([]);
+  const [authTokens, setAuthTokens] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [messageInput, setMessageInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [messageInput, setMessageInput] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
 
   /* ---------------- SOCKET ---------------- */
 
-//   useEffect(() => {
-//     if (!isLoggedIn || !authTokens || socket) return;
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      dispatch(
+        initSocket({
+          userId: currentUser._id,
+          dispatch,
+        })
+      );
+    }
 
-//     const newSocket = io(API_URL, {
-//       auth: { token: authTokens.accessToken },
-//       transports: ['websocket', 'polling']
-//     });
+    return () => {
+      dispatch(disconnectSocket());
+      dispatch(clearChat());
+    };
+  }, [isLoggedIn, currentUser, dispatch]);
 
-//     newSocket.on('new_message', (message: Message) => {
-//       setMessages(prev => [...prev, message]);
+  /* ---------------- DATA ---------------- */
 
-//       const senderId =
-//         typeof message.sender === 'string'
-//           ? message.sender
-//           : message.sender._id;
+  useEffect(() => {
+    if (isLoggedIn && authTokens) {
+        dispatch(getChatUsers());
+    }
+    }, [isLoggedIn, authTokens, dispatch]);
 
-//       if (selectedUser?._id !== senderId) {
-//         setUnreadCounts(prev => ({
-//           ...prev,
-//           [senderId]: (prev[senderId] || 0) + 1
-//         }));
-//       }
-//     });
 
-//     newSocket.on('message_sent', (message: Message) => {
-//       setMessages(prev => [...prev, message]);
-//     });
+  useEffect(() => {
+    if (selectedUser && authTokens && currentUser) {
+        dispatch(
+        getMessages({
+            sender: currentUser._id,
+            recipient: selectedUser._id,
+        })
+        );
 
-//     newSocket.on('user_typing', ({ userId, isTyping }) => {
-//       setTypingUsers(prev => {
-//         const next = new Set(prev);
-//         isTyping ? next.add(userId) : next.delete(userId);
-//         return next;
-//       });
-//     });
+        socket?.emit("mark_read", { senderId: selectedUser._id });
+        dispatch(resetUnread(selectedUser._id));
+    }
+    }, [selectedUser, authTokens, currentUser, dispatch]);
 
-//     newSocket.on('user_status', ({ userId, isOnline }) => {
-//       setUsers(prev =>
-//         prev.map(u => (u._id === userId ? { ...u, isOnline } : u))
-//       );
-//     });
-
-//     newSocket.on('unread_counts', counts => {
-//       setUnreadCounts(counts);
-//     });
-
-//     setSocket(newSocket);
-
-//     return () => {
-//       newSocket.close();
-//       setSocket(null);
-//     };
-//   }, [isLoggedIn, authTokens, socket, selectedUser]);
-
-  /* ---------------- FETCH ---------------- */
-
-//   useEffect(() => {
-//     if (isLoggedIn && authTokens) fetchUsers();
-//   }, [isLoggedIn, authTokens]);
-
-//   useEffect(() => {
-//     if (selectedUser && authTokens) fetchMessages(selectedUser._id);
-//   }, [selectedUser, authTokens]);
-
-//   const fetchUsers = async () => {
-//     const res = await fetch(`${API_URL}/api/chat/users`, {
-//       headers: { Authorization: `Bearer ${authTokens?.accessToken}` }
-//     });
-//     const data = await res.json();
-//     setUsers(data.users);
-//   };
-
-//   const fetchMessages = async (userId: string) => {
-//     const res = await fetch(
-//       `${API_URL}/api/messages/conversation/${userId}`,
-//       {
-//         headers: { Authorization: `Bearer ${authTokens?.accessToken}` }
-//       }
-//     );
-//     const data = await res.json();
-//     setMessages(data.messages);
-
-//     socket?.emit('mark_read', { senderId: userId });
-//     setUnreadCounts(prev => ({ ...prev, [userId]: 0 }));
-//   };
-
-  /* ---------------- AUTH ---------------- */
-
-//   const handleAuth = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setAuthError('');
-
-//     const endpoint = isRegistering
-//       ? '/api/auth/register'
-//       : '/api/auth/login';
-
-//     const body = isRegistering
-//       ? authForm
-//       : { email: authForm.email, password: authForm.password };
-
-//     const res = await fetch(`${API_URL}${endpoint}`, {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify(body)
-//     });
-
-//     const data = await res.json();
-
-//     if (!res.ok) {
-//       setAuthError(data.error);
-//       return;
-//     }
-
-//     setAuthTokens(data.tokens);
-//     setCurrentUser(data.user);
-//     setIsLoggedIn(true);
-//   };
 
   /* ---------------- CHAT ---------------- */
 
@@ -159,117 +81,56 @@ export default function App() {
     e.preventDefault();
     if (!messageInput.trim() || !selectedUser || !socket) return;
 
-    socket.emit('send_message', {
+    socket.emit("send_message", {
       receiverId: selectedUser._id,
-      content: messageInput.trim()
+      content: messageInput.trim(),
     });
 
-    setMessageInput('');
-    setIsTyping(false);
+    setMessageInput("");
   };
 
-  const handleTyping = (value: string) => {
-    setMessageInput(value);
-
-    if (!selectedUser || !socket) return;
-
-    const typing = value.length > 0;
-    if (typing !== isTyping) {
-      setIsTyping(typing);
-      socket.emit('typing', {
-        receiverId: selectedUser._id,
-        isTyping: typing
-      });
-    }
-  };
-
-  const handleLogout = () => {
-    socket?.close();
-    setSocket(null);
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setAuthTokens(null);
-    setSelectedUser(null);
-    setMessages([]);
-    setUsers([]);
-  };
-
-  /* ---------------- RENDER ---------------- */
+  /* ---------------- AUTH ---------------- */
 
   if (!isLoggedIn) {
     return (
       <AuthForm
         isRegistering={isRegistering}
-        authForm={authForm}
-        authError={authError}
-        onSubmit={() => {}}
-        toggleMode={() => {
-          setIsRegistering(!isRegistering);
-          setAuthError('');
+        toggleMode={() => setIsRegistering(!isRegistering)}
+        onAuthSuccess={(user, tokens) => {
+          setCurrentUser(user);
+          setAuthTokens(tokens);
+          setIsLoggedIn(true);
         }}
-        onChange={(field, value) =>
-          setAuthForm(prev => ({ ...prev, [field]: value }))
-        }
       />
     );
   }
 
+  /* ---------------- UI ---------------- */
+
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow px-6 py-4 flex justify-between">
-        <div>
-          <h2 className="font-semibold">{currentUser?.username}</h2>
-          <p className="text-sm text-gray-500">{currentUser?.email}</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Logout
-        </button>
-      </div>
+    <div className="h-screen flex flex-col">
+      <UsersList
+        users={users}
+        selectedUser={selectedUser}
+        unreadCounts={unreadCounts}
+        onSelect={setSelectedUser}
+      />
 
-      <div className="flex flex-1 overflow-hidden">
-        <UsersList
-          users={users}
-          selectedUser={selectedUser}
-          unreadCounts={unreadCounts}
-          onSelect={setSelectedUser}
+      {selectedUser && (
+        <ChatMessages
+          messages={messages}
+          currentUser={currentUser}
+          typing={true}
         />
+      )}
 
-        {selectedUser ? (
-          <div className="flex-1 flex flex-col">
-            <ChatMessages
-              messages={messages}
-              currentUser={currentUser}
-              typing={typingUsers.has(selectedUser._id)}
-            />
-
-            <form
-              onSubmit={handleSendMessage}
-              className="bg-white p-4 flex gap-2 border-t"
-            >
-              <input
-                value={messageInput}
-                onChange={e => handleTyping(e.target.value)}
-                className="flex-1 border rounded-full px-4 py-2"
-                placeholder="Type a message..."
-              />
-              <button
-                disabled={!messageInput.trim()}
-                className="bg-blue-600 text-white px-6 rounded-full"
-              >
-                Send
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
-            Select a user to start chatting
-          </div>
-        )}
-      </div>
+      <form onSubmit={handleSendMessage}>
+        <input
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+        />
+        <button>Send</button>
+      </form>
     </div>
   );
 }
